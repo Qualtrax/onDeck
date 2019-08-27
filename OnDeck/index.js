@@ -4,35 +4,25 @@ const gitHubService = require('./gitHubService');
 module.exports = async function (context, req) {
     context.log('JavaScript HTTP trigger function processed a request.');
 
-    let sortedTags = [];
-    await gitHubService.getTags()
-      .then(data => sortedTags = data);
-
+    let commitsFromDev = await gitHubService.getCommitsJustOnDev();
+    let sortedTags = await gitHubService.getTags()
     let tag = sortedTags[0];
     let date = moment(tag.committedDate).add(1, 'seconds');
-
-    let gitHubIssues = [];
-    await gitHubService.getIssuesSince(date)
-      .then(data => gitHubIssues = data);
-
     let responses = [];
 
-    if (gitHubIssues.length) {
-      const bulletedList = gitHubIssues.map(issue => {
+    if (commitsFromDev.length) {
+      const bulletedList = commitsFromDev.map(issue => {
         return `:moneybag: <${issue.link}|${ issue.message }>`;
       });
-      const moneyBags = gitHubIssues.map(issue => ":moneybag:");
-      bulletedList.unshift(`:qtrax: *Commits since \`${tag.name}\`:*`);
-      bulletedList.push(":koala: *Should we be shipping this value?!* :koala:");
+      const moneyBags = commitsFromDev.map(issue => ":moneybag:");
+      bulletedList.unshift(`*Commits since \`${tag.name}\` (_${moment(tag.committedDate).fromNow()}_): *`);
       bulletedList.push('');
-      bulletedList.push('');
-      bulletedList.push(moneyBags);
+      bulletedList.push(`:koala: *Should we be shipping this value?* ${moneyBags.join('')}`);
       responses = bulletedList;
     }
     else {
       date = moment(sortedTags[1].committedDate).add(1, 'seconds');
-      await gitHubService.getIssuesSince(date)
-        .then(data => gitHubIssues = data);
+      let gitHubIssues = await gitHubService.getIssuesSince(date)
 
       const deliveredIssues = gitHubIssues.map(issue => {
         return `:moneybag: <${issue.link}|${ issue.message }>`;
